@@ -1,3 +1,4 @@
+import { supabase } from './supabaseClient';
 import { fetchHotelImages } from './hotelImageService';
 import type { BookingData } from '../types';
 
@@ -131,6 +132,44 @@ const calculateNights = (checkIn: string, checkOut: string): number => {
 
 export const sendMessageToN8N = async (message: string, userId?: string) => {
   try {
+    let userData = null;
+    let userPreferences = null;
+
+    if (userId) {
+      try {
+        // Fetch user data from Supabase Auth
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Get user metadata
+          userData = {
+            id: user.id,
+            email: user.email,
+            name: user.user_metadata?.full_name,
+            phone: user.user_metadata?.phone
+          };
+
+          // Get user preferences
+          const { data: preferences } = await supabase
+            .from('user_preferences')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+          if (preferences) {
+            userPreferences = {
+              preferred_hotel: preferences.preferred_hotel,
+              frequent_changes: preferences.frequent_changes,
+              avoid_locations: preferences.avoid_locations
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        // Continue without user data if there's an error
+      }
+    }
+
     // Check for booking confirmation first
     const bookingConfirmation = extractBookingConfirmation(message);
     if (bookingConfirmation) {
@@ -138,8 +177,13 @@ export const sendMessageToN8N = async (message: string, userId?: string) => {
       
       // Fetch hotel images if we have a hotel name
       if (bookingConfirmation.hotel.name) {
-        const hotelImages = await fetchHotelImages(bookingConfirmation.hotel.name);
-        currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        try {
+          const hotelImages = await fetchHotelImages(bookingConfirmation.hotel.name);
+          currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        } catch (error) {
+          console.error('Error fetching hotel images:', error);
+          // Continue without images if there's an error
+        }
       }
     } else {
       // If no booking confirmation, check for dates
@@ -161,22 +205,23 @@ export const sendMessageToN8N = async (message: string, userId?: string) => {
         currentBookingData.hotel.name = hotelName;
         
         // Fetch new hotel images
-        const hotelImages = await fetchHotelImages(hotelName);
-        currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        try {
+          const hotelImages = await fetchHotelImages(hotelName);
+          currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        } catch (error) {
+          console.error('Error fetching hotel images:', error);
+          // Continue without images if there's an error
+        }
       }
     }
 
     // Prepare the request payload
     const payload = {
       message,
-      userId,
       sessionId,
       timestamp: new Date().toISOString(),
-      output: message,
-      type: null,
-      data: {
-        bookingData: currentBookingData
-      }
+      user: userData,
+      preferences: userPreferences
     };
 
     // Make the request to N8N
@@ -188,17 +233,34 @@ export const sendMessageToN8N = async (message: string, userId?: string) => {
       body: JSON.stringify(payload)
     });
 
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (error) {
+      console.error('Error parsing N8N response:', error);
+      responseData = null;
+    }
+
     if (!response.ok) {
-      throw new Error(`Error al enviar mensaje a n8n: ${response.status} ${response.statusText}`);
+      // If we have response data, include it in the error
+      const errorMessage = responseData 
+        ? `Error al enviar mensaje a n8n: ${response.status} - ${JSON.stringify(responseData)}`
+        : `Error al enviar mensaje a n8n: ${response.status} ${response.statusText}`;
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-    
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      throw new Error('Respuesta inválida de n8n');
+    if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
+      // Return a default response if the N8N response is invalid
+      return {
+        output: message,
+        type: null,
+        data: {
+          bookingData: currentBookingData
+        }
+      };
     }
 
-    const output = data[0]?.output ?? message;
+    const output = responseData[0]?.output ?? message;
     
     // Check for booking confirmation in the response
     const responseBookingConfirmation = extractBookingConfirmation(output);
@@ -207,8 +269,13 @@ export const sendMessageToN8N = async (message: string, userId?: string) => {
       
       // Fetch hotel images if we have a hotel name
       if (responseBookingConfirmation.hotel.name) {
-        const hotelImages = await fetchHotelImages(responseBookingConfirmation.hotel.name);
-        currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        try {
+          const hotelImages = await fetchHotelImages(responseBookingConfirmation.hotel.name);
+          currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        } catch (error) {
+          console.error('Error fetching hotel images:', error);
+          // Continue without images if there's an error
+        }
       }
     } else {
       // If no booking confirmation, check for dates in the response
@@ -230,14 +297,19 @@ export const sendMessageToN8N = async (message: string, userId?: string) => {
         currentBookingData.hotel.name = responseHotelName;
         
         // Fetch new hotel images
-        const hotelImages = await fetchHotelImages(responseHotelName);
-        currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        try {
+          const hotelImages = await fetchHotelImages(responseHotelName);
+          currentBookingData.hotel.additionalImages = hotelImages.map(img => img.imageUrl);
+        } catch (error) {
+          console.error('Error fetching hotel images:', error);
+          // Continue without images if there's an error
+        }
       }
     }
 
     return {
       output,
-      type: data[0]?.type ?? null,
+      type: responseData[0]?.type ?? null,
       data: {
         bookingData: currentBookingData
       }

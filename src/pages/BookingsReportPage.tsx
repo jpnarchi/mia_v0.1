@@ -32,38 +32,35 @@ import { CallToBackend } from "../components/CallToBackend";
 /* OBJETO PAYMENT_DATA y datos que ocupa, este domain es el cambio de tu dominio para que te mande a esa pagina una vez procesado el pago*/
 const DOMAIN = "http://localhost:5173";
 const payment_metadata = {};
-const payment_data = {
-  line_items: [
-    {
-      price_data: {
-        currency: "mxn", // Moneda
-        product_data: {
-          name: "Producto Ejemplo", // Nombre del producto,
-          description: "Producto de ejemplo para stripe",
-          images: [
-            "https://www.tvtime.com/_next/image?url=https%3A%2F%2Fartworks.thetvdb.com%2Fbanners%2Fv4%2Fmovie%2F567%2Fposters%2F668ad17fe053a.jpg",
-          ],
+const getPaymentData = (booking) => {
+  const payment_metadata = {
+    booking_id: booking.id,
+    confirmation_code: booking.confirmation_code
+  };
+
+  const currentUrl = window.location.href;
+
+  return {
+    line_items: [
+      {
+        price_data: {
+          currency: "mxn",
+          product_data: {
+            name: booking.hotel_name,
+            description: `Reservación en ${booking.hotel_name} - ${booking.room_type === 'single' ? 'Habitación Sencilla' : 'Habitación Doble'}`,
+            images: [
+              "https://cache.marriott.com/content/dam/marriott-digital/xe/cala/hws/c/cpexp/es_es/photo/unlimited/assets/xe-cpexp-cpexp-exterior-44556.jpg"
+            ],
+          },
+          unit_amount: Math.round(booking.total_price * 100), // Convertir a centavos
         },
-        unit_amount: 1010, // Monto en centavos => $10.10
-      },
-      quantity: 1, // Cantidad de productos
-    },
-    /*{
-      price_data: {
-        currency: 'mxn', 
-        product_data: {
-          name: 'Producto Ejemplo 2', 
-        },
-        unit_amount: 2030, 
-      },
-      quantity: 1, 
-    }*/
-  ],
-  mode: "payment",
-  success_url: `${DOMAIN}?success=true&session={CHECKOUT_SESSION_ID}&metadata=${JSON.stringify(
-    payment_metadata
-  )}`, // En caso de que necesites mandar datos extras para despues del pago puedes hacerlo aqui, por ejemplo el id de la orden de compra para verificar que se compre o cancelar la compra y asi. Te lo coloque como un json pero si solo vas a mandar el string puede ser sin el json
-  cancel_url: `${DOMAIN}?session={CHECKOUT_SESSION_ID}`,
+        quantity: 1,
+      }
+    ],
+    mode: "payment",
+    success_url: `${DOMAIN}?success=true&session={CHECKOUT_SESSION_ID}&metadata=${JSON.stringify(payment_metadata)}`,
+    cancel_url: currentUrl,
+  };
 };
 
 interface Booking {
@@ -295,7 +292,7 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({
               )}
             </button>
             {booking.status === "pending" && (
-              <CallToBackend paymentData={payment_data}>
+              <CallToBackend paymentData={getPaymentData(booking)}>
                 <CreditCard className="w-4 h-4" />
                 <span>Pagar</span>
                 <ArrowRight className="w-4 h-4" />
@@ -438,37 +435,13 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({
                     minute: "2-digit",
                   })}
                 </p>
-              </div>
-              {booking.status === "pending" && (
-                <div className="text-right">
-                  <button
-                    onClick={() =>
-                      window.dispatchEvent(
-                        new CustomEvent("showPaymentPage", {
-                          detail: {
-                            bookingData: {
-                              confirmationCode: booking.confirmation_code,
-                              hotel: { name: booking.hotel_name },
-                              dates: {
-                                checkIn: booking.check_in,
-                                checkOut: booking.check_out,
-                              },
-                              room: {
-                                type: booking.room_type as "single" | "double",
-                                totalPrice: booking.total_price,
-                              },
-                            },
-                          },
-                        })
-                      )
-                    }
-                    className="inline-flex items-center space-x-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors"
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    <span>Proceder al Pago</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
                 </div>
+              {booking.status === "pending" && (
+                <CallToBackend paymentData={getPaymentData(booking)} className="inline-flex items-center space-x-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors">
+                  <CreditCard className="w-5 h-5" />
+                  <span>Proceder al Pago</span>
+                  <ArrowRight className="w-5 h-5" />
+                </CallToBackend>
               )}
             </div>
           </div>

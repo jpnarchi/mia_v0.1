@@ -3,6 +3,42 @@ import type { BookingData } from '../types';
 import { Calendar, Users, CreditCard, Building2, ArrowRight, Check, Clock, Download, Receipt, CreditCard as PaymentIcon } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from '../services/supabaseClient';
+import { CallToBackend } from '../components/CallToBackend';
+
+const DOMAIN = "http://localhost:5173";
+const getPaymentData = (bookingData: BookingData) => {
+  const payment_metadata = {
+    confirmation_code: bookingData.confirmationCode
+  };
+
+  // Obtener la primera imagen adicional si existe
+  const imageToUse = bookingData.hotel.additionalImages?.[0] || 
+                     bookingData.hotel.image || 
+                     "https://www.tvtime.com/_next/image?url=https%3A%2F%2Fartworks.thetvdb.com%2Fbanners%2Fv4%2Fmovie%2F567%2Fposters%2F668ad17fe053a.jpg";
+
+  // Obtener la URL actual completa
+  const currentUrl = window.location.href;
+
+  return {
+    line_items: [
+      {
+        price_data: {
+          currency: "mxn",
+          product_data: {
+            name: bookingData.hotel.name,
+            description: `Reservación en ${bookingData.hotel.name} - ${bookingData.room?.type === 'single' ? 'Habitación Sencilla' : 'Habitación Doble'}`,
+            images: [imageToUse],
+          },
+          unit_amount: Math.round((bookingData.room?.totalPrice || 0) * 100),
+        },
+        quantity: 1,
+      }
+    ],
+    mode: "payment",
+    success_url: `${DOMAIN}?success=true&session={CHECKOUT_SESSION_ID}&metadata=${JSON.stringify(payment_metadata)}`,
+    cancel_url: currentUrl,  // Aquí usamos la URL actual
+  };
+};
 
 interface ReservationPanelProps {
   bookingData?: BookingData;
@@ -127,22 +163,22 @@ export const ReservationPanel: React.FC<ReservationPanelProps> = ({
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  onClick={handleProceedToPayment}
-                  className="flex items-center justify-center space-x-3 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                >
-                  <PaymentIcon className="w-5 h-5" />
-                  <span className="font-semibold">Proceder al Pago</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={handleDownloadPDF}
-                  className="flex items-center justify-center space-x-3 px-6 py-3 bg-[#10244c] text-white rounded-xl hover:bg-[#10244c]/90 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                >
-                  <Download className="w-5 h-5" />
-                  <span className="font-semibold">Descargar Reservación</span>
-                </button>
-              </div>
+              <CallToBackend 
+                paymentData={getPaymentData(bookingData)}
+                className="flex items-center justify-center space-x-3 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <PaymentIcon className="w-5 h-5" />
+                <span className="font-semibold">Proceder al Pago</span>
+                <ArrowRight className="w-5 h-5" />
+              </CallToBackend>
+              <button
+                onClick={handleDownloadPDF}
+                className="flex items-center justify-center space-x-3 px-6 py-3 bg-[#10244c] text-white rounded-xl hover:bg-[#10244c]/90 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <Download className="w-5 h-5" />
+                <span className="font-semibold">Descargar Reservación</span>
+              </button>
+            </div>
             </div>
           </div>
         </div>
