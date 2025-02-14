@@ -21,7 +21,7 @@ export const CallToBackend = () => {
   );
 };
 
-const URL = "http://localhost:3000";
+const URL = "https://mianoktos.vercel.app";
 const ROUTES = {
   stripe: "/v1/stripe",
 };
