@@ -1,11 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
-import { ArrowLeft, Calendar, Hotel, CreditCard, Clock, CheckCircle, AlertTriangle, Search, Download, ArrowDownToLine, MessageSquare, Trash2, X, Filter, ArrowRight, ChevronDown, ChevronUp, DollarSign, MapPin, Receipt } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
-import type { Invoice, BillingOption } from '../types';
-import { InvoiceHistory } from '../components/InvoiceHistory';
-import { BillingOptions } from '../components/BillingOptions';
-import { fetchInvoices } from '../services/billingService';
+import React, { useState, useEffect } from "react";
+import { supabase } from "../services/supabaseClient";
+import {
+  ArrowLeft,
+  Calendar,
+  Hotel,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  Search,
+  Download,
+  ArrowDownToLine,
+  MessageSquare,
+  Trash2,
+  X,
+  Filter,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  DollarSign,
+  MapPin,
+  Receipt,
+} from "lucide-react";
+import html2pdf from "html2pdf.js";
+import type { Invoice, BillingOption } from "../types";
+import { InvoiceHistory } from "../components/InvoiceHistory";
+import { BillingOptions } from "../components/BillingOptions";
+import { fetchInvoices } from "../services/billingService";
+import { CallToBackend } from "../components/CallToBackend";
+
+/* OBJETO PAYMENT_DATA y datos que ocupa, este domain es el cambio de tu dominio para que te mande a esa pagina una vez procesado el pago*/
+const DOMAIN = "http://localhost:5173";
+const payment_metadata = {};
+const payment_data = {
+  line_items: [
+    {
+      price_data: {
+        currency: "mxn", // Moneda
+        product_data: {
+          name: "Producto Ejemplo", // Nombre del producto,
+          description: "Producto de ejemplo para stripe",
+          images: [
+            "https://www.tvtime.com/_next/image?url=https%3A%2F%2Fartworks.thetvdb.com%2Fbanners%2Fv4%2Fmovie%2F567%2Fposters%2F668ad17fe053a.jpg",
+          ],
+        },
+        unit_amount: 1010, // Monto en centavos => $10.10
+      },
+      quantity: 1, // Cantidad de productos
+    },
+    /*{
+      price_data: {
+        currency: 'mxn', 
+        product_data: {
+          name: 'Producto Ejemplo 2', 
+        },
+        unit_amount: 2030, 
+      },
+      quantity: 1, 
+    }*/
+  ],
+  mode: "payment",
+  success_url: `${DOMAIN}?success=true&session={CHECKOUT_SESSION_ID}&metadata=${JSON.stringify(
+    payment_metadata
+  )}`, // En caso de que necesites mandar datos extras para despues del pago puedes hacerlo aqui, por ejemplo el id de la orden de compra para verificar que se compre o cancelar la compra y asi. Te lo coloque como un json pero si solo vas a mandar el string puede ser sin el json
+  cancel_url: `${DOMAIN}?session={CHECKOUT_SESSION_ID}`,
+};
 
 interface Booking {
   id: string;
@@ -23,19 +82,24 @@ interface BookingsReportPageProps {
   onBack: () => void;
 }
 
-export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }) => {
+export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({
+  onBack,
+}) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(
+    null
+  );
   const [showBillingOptions, setShowBillingOptions] = useState(false);
-  const [selectedBookingForBilling, setSelectedBookingForBilling] = useState<Booking | null>(null);
+  const [selectedBookingForBilling, setSelectedBookingForBilling] =
+    useState<Booking | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -48,7 +112,7 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
       const invoicesData = await fetchInvoices();
       setInvoices(invoicesData);
     } catch (error) {
-      console.error('Error loading invoices:', error);
+      console.error("Error loading invoices:", error);
     } finally {
       setIsLoadingInvoices(false);
     }
@@ -57,22 +121,24 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
   const fetchBookings = async () => {
     try {
       setIsLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
-        throw new Error('No user found');
+        throw new Error("No user found");
       }
 
       const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("bookings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setBookings(data || []);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.error("Error fetching bookings:", error);
     } finally {
       setIsLoading(false);
     }
@@ -83,24 +149,24 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
 
     try {
       const { error } = await supabase
-        .from('bookings')
+        .from("bookings")
         .delete()
-        .eq('id', selectedBooking.id);
+        .eq("id", selectedBooking.id);
 
       if (error) throw error;
 
-      setBookings(prev => prev.filter(b => b.id !== selectedBooking.id));
+      setBookings((prev) => prev.filter((b) => b.id !== selectedBooking.id));
       setShowDeleteModal(false);
       setSelectedBooking(null);
     } catch (error: any) {
-      console.error('Error deleting booking:', error);
+      console.error("Error deleting booking:", error);
       setDeleteError(error.message);
     }
   };
 
   const handleBillingOptionSelect = (option: BillingOption) => {
     // Here you would navigate to the billing process page with the selected option
-    console.log('Selected billing option:', option);
+    console.log("Selected billing option:", option);
     // You can implement the navigation and billing process here
   };
 
@@ -108,26 +174,29 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
     setExpandedBookingId(expandedBookingId === bookingId ? null : bookingId);
   };
 
-  const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = 
+  const filteredBookings = bookings.filter((booking) => {
+    const matchesSearch =
       booking.hotel_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.confirmation_code.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    
+      booking.confirmation_code
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "all" || booking.status === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
   const downloadReport = () => {
-    const element = document.getElementById('bookings-report');
+    const element = document.getElementById("bookings-report");
     if (!element) return;
 
     const opt = {
       margin: 1,
-      filename: 'reporte-reservas.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
+      filename: "reporte-reservas.pdf",
+      image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
     };
 
     html2pdf().set(opt).from(element).save();
@@ -162,8 +231,8 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
             <div className="flex items-center space-x-3">
               <Calendar className="w-5 h-5 text-gray-400" />
               <div className="text-gray-600">
-                <p>{new Date(booking.check_in).toLocaleDateString('es-MX')}</p>
-                <p>{new Date(booking.check_out).toLocaleDateString('es-MX')}</p>
+                <p>{new Date(booking.check_in).toLocaleDateString("es-MX")}</p>
+                <p>{new Date(booking.check_out).toLocaleDateString("es-MX")}</p>
               </div>
             </div>
 
@@ -171,21 +240,32 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
               <div className="text-right">
                 <p className="text-gray-500 text-sm">Total</p>
                 <p className="text-lg font-semibold text-gray-900">
-                  ${booking.total_price.toLocaleString('es-MX')} MXN
+                  ${booking.total_price.toLocaleString("es-MX")} MXN
                 </p>
               </div>
 
-              <div className={`px-3 py-1 rounded-full flex items-center space-x-1 ${
-                booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {booking.status === 'completed' ? <CheckCircle className="w-4 h-4" /> :
-                 booking.status === 'pending' ? <Clock className="w-4 h-4" /> :
-                 <AlertTriangle className="w-4 h-4" />}
+              <div
+                className={`px-3 py-1 rounded-full flex items-center space-x-1 ${
+                  booking.status === "completed"
+                    ? "bg-green-100 text-green-800"
+                    : booking.status === "pending"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {booking.status === "completed" ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : booking.status === "pending" ? (
+                  <Clock className="w-4 h-4" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4" />
+                )}
                 <span className="text-sm capitalize">
-                  {booking.status === 'completed' ? 'Completada' :
-                   booking.status === 'pending' ? 'Pendiente' : 'Cancelada'}
+                  {booking.status === "completed"
+                    ? "Completada"
+                    : booking.status === "pending"
+                    ? "Pendiente"
+                    : "Cancelada"}
                 </span>
               </div>
             </div>
@@ -214,31 +294,42 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
                 <ChevronDown className="w-4 h-4" />
               )}
             </button>
-            {booking.status === 'pending' && (
+            {booking.status === "pending" && (
+              <CallToBackend paymentData={payment_data}>
+                <CreditCard className="w-4 h-4" />
+                <span>Pagar</span>
+                <ArrowRight className="w-4 h-4" />
+              </CallToBackend>
+            )}
+            {/* {booking.status === "pending" && (
               <button
-                onClick={() => window.dispatchEvent(new CustomEvent('showPaymentPage', { 
-                  detail: { 
-                    bookingData: {
-                      confirmationCode: booking.confirmation_code,
-                      hotel: { name: booking.hotel_name },
-                      dates: { 
-                        checkIn: booking.check_in,
-                        checkOut: booking.check_out
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("showPaymentPage", {
+                      detail: {
+                        bookingData: {
+                          confirmationCode: booking.confirmation_code,
+                          hotel: { name: booking.hotel_name },
+                          dates: {
+                            checkIn: booking.check_in,
+                            checkOut: booking.check_out,
+                          },
+                          room: {
+                            type: booking.room_type as "single" | "double",
+                            totalPrice: booking.total_price,
+                          },
+                        },
                       },
-                      room: {
-                        type: booking.room_type as 'single' | 'double',
-                        totalPrice: booking.total_price
-                      }
-                    }
-                  }
-                }))}
+                    })
+                  )
+                }
                 className="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
               >
                 <CreditCard className="w-4 h-4" />
                 <span>Pagar</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-            )}
+            )} */}
             <button
               onClick={() => {
                 setSelectedBooking(booking);
@@ -263,11 +354,12 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
               </div>
               <div className="space-y-2">
                 <p className="text-gray-900">
-                  <span className="text-gray-500">Nombre:</span> {booking.hotel_name}
+                  <span className="text-gray-500">Nombre:</span>{" "}
+                  {booking.hotel_name}
                 </p>
                 <p className="text-gray-900">
-                  <span className="text-gray-500">Tipo de Habitación:</span> {' '}
-                  {booking.room_type === 'single' ? 'Sencilla' : 'Doble'}
+                  <span className="text-gray-500">Tipo de Habitación:</span>{" "}
+                  {booking.room_type === "single" ? "Sencilla" : "Doble"}
                 </p>
               </div>
             </div>
@@ -280,10 +372,12 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
               </div>
               <div className="space-y-2">
                 <p className="text-gray-900">
-                  <span className="text-gray-500">Check-in:</span> {new Date(booking.check_in).toLocaleDateString('es-MX')}
+                  <span className="text-gray-500">Check-in:</span>{" "}
+                  {new Date(booking.check_in).toLocaleDateString("es-MX")}
                 </p>
                 <p className="text-gray-900">
-                  <span className="text-gray-500">Check-out:</span> {new Date(booking.check_out).toLocaleDateString('es-MX')}
+                  <span className="text-gray-500">Check-out:</span>{" "}
+                  {new Date(booking.check_out).toLocaleDateString("es-MX")}
                 </p>
               </div>
             </div>
@@ -296,21 +390,33 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
               </div>
               <div className="space-y-2">
                 <p className="text-gray-900">
-                  <span className="text-gray-500">Total:</span> ${booking.total_price.toLocaleString('es-MX')} MXN
+                  <span className="text-gray-500">Total:</span> $
+                  {booking.total_price.toLocaleString("es-MX")} MXN
                 </p>
                 <p className="text-gray-900">
-                  <span className="text-gray-500">Estado:</span> {' '}
-                  <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-sm ${
-                    booking.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {booking.status === 'completed' ? <CheckCircle className="w-4 h-4" /> :
-                     booking.status === 'pending' ? <Clock className="w-4 h-4" /> :
-                     <AlertTriangle className="w-4 h-4" />}
+                  <span className="text-gray-500">Estado:</span>{" "}
+                  <span
+                    className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-sm ${
+                      booking.status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : booking.status === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {booking.status === "completed" ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : booking.status === "pending" ? (
+                      <Clock className="w-4 h-4" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4" />
+                    )}
                     <span>
-                      {booking.status === 'completed' ? 'Completado' :
-                       booking.status === 'pending' ? 'Pendiente' : 'Cancelado'}
+                      {booking.status === "completed"
+                        ? "Completado"
+                        : booking.status === "pending"
+                        ? "Pendiente"
+                        : "Cancelado"}
                     </span>
                   </span>
                 </p>
@@ -323,34 +429,39 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="text-gray-500">
                 <p className="text-sm">
-                  Reservación creada el {new Date(booking.created_at).toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
+                  Reservación creada el{" "}
+                  {new Date(booking.created_at).toLocaleDateString("es-MX", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
                   })}
                 </p>
               </div>
-              {booking.status === 'pending' && (
+              {booking.status === "pending" && (
                 <div className="text-right">
                   <button
-                    onClick={() => window.dispatchEvent(new CustomEvent('showPaymentPage', { 
-                      detail: { 
-                        bookingData: {
-                          confirmationCode: booking.confirmation_code,
-                          hotel: { name: booking.hotel_name },
-                          dates: { 
-                            checkIn: booking.check_in,
-                            checkOut: booking.check_out
+                    onClick={() =>
+                      window.dispatchEvent(
+                        new CustomEvent("showPaymentPage", {
+                          detail: {
+                            bookingData: {
+                              confirmationCode: booking.confirmation_code,
+                              hotel: { name: booking.hotel_name },
+                              dates: {
+                                checkIn: booking.check_in,
+                                checkOut: booking.check_out,
+                              },
+                              room: {
+                                type: booking.room_type as "single" | "double",
+                                totalPrice: booking.total_price,
+                              },
+                            },
                           },
-                          room: {
-                            type: booking.room_type as 'single' | 'double',
-                            totalPrice: booking.total_price
-                          }
-                        }
-                      }
-                    }))}
+                        })
+                      )
+                    }
                     className="inline-flex items-center space-x-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors"
                   >
                     <CreditCard className="w-5 h-5" />
@@ -393,10 +504,7 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
               <h2 className="text-xl font-semibold text-white">Facturas</h2>
               <Receipt className="w-6 h-6 text-white/60" />
             </div>
-            <InvoiceHistory
-              invoices={invoices}
-              isLoading={isLoadingInvoices}
-            />
+            <InvoiceHistory invoices={invoices} isLoading={isLoadingInvoices} />
           </div>
 
           {/* Contenido Principal - Derecha */}
@@ -420,10 +528,18 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="bg-transparent text-white border-none focus:outline-none"
                 >
-                  <option value="all" className="text-gray-900">Todos los estados</option>
-                  <option value="completed" className="text-gray-900">Completadas</option>
-                  <option value="pending" className="text-gray-900">Pendientes</option>
-                  <option value="cancelled" className="text-gray-900">Canceladas</option>
+                  <option value="all" className="text-gray-900">
+                    Todos los estados
+                  </option>
+                  <option value="completed" className="text-gray-900">
+                    Completadas
+                  </option>
+                  <option value="pending" className="text-gray-900">
+                    Pendientes
+                  </option>
+                  <option value="cancelled" className="text-gray-900">
+                    Canceladas
+                  </option>
                 </select>
               </div>
             </div>
@@ -439,7 +555,9 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
               ) : (
                 <div className="text-center py-12 bg-white/10 backdrop-blur-sm rounded-lg">
                   <MessageSquare className="w-12 h-12 text-white/40 mx-auto mb-4" />
-                  <p className="text-white/80">No se encontraron reservaciones</p>
+                  <p className="text-white/80">
+                    No se encontraron reservaciones
+                  </p>
                 </div>
               )}
             </div>
@@ -455,7 +573,8 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
               Confirmar Eliminación
             </h3>
             <p className="text-gray-600 mb-6">
-              ¿Estás seguro de que deseas eliminar esta reservación? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas eliminar esta reservación? Esta acción
+              no se puede deshacer.
             </p>
             {deleteError && (
               <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-lg">
@@ -502,13 +621,16 @@ export const BookingsReportPage: React.FC<BookingsReportPageProps> = ({ onBack }
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="mb-6 bg-blue-50 rounded-lg p-4">
               <div className="flex items-center space-x-3">
                 <Receipt className="w-5 h-5 text-blue-600" />
                 <div>
                   <p className="text-sm text-blue-900">
-                    Facturando reservación: <span className="font-medium">{selectedBookingForBilling.confirmation_code}</span>
+                    Facturando reservación:{" "}
+                    <span className="font-medium">
+                      {selectedBookingForBilling.confirmation_code}
+                    </span>
                   </p>
                   <p className="text-sm text-blue-700">
                     {selectedBookingForBilling.hotel_name}

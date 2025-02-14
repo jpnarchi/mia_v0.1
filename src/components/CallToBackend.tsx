@@ -1,4 +1,5 @@
-export const CallToBackend = () => {
+export const CallToBackend = (props) => {
+  const { children, paymentData } = props;
   const urlParams = new URLSearchParams(window.location.search);
   const session = urlParams.get("session");
 
@@ -11,16 +12,17 @@ export const CallToBackend = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    crearSessionCheckout();
+    crearSessionCheckout(paymentData);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <button type="submit">Enviar</button>
-    </form>
+    <button onClick={handleSubmit} {...props}>
+      {children}
+    </button>
   );
 };
 
+/* LLAMADAS A LA API*/
 const URL = "https://mianoktos.vercel.app";
 const ROUTES = {
   stripe: "/v1/stripe",
@@ -29,7 +31,8 @@ const ENDPOINTS = {
   create: "/create-checkout-session",
   retrieve: "/get-checkout-session",
 };
-const API_KEY = "";
+const API_KEY =
+  "nkt-U9TdZU63UENrblg1WI9I1Ln9NcGrOyaCANcpoS2PJT3BlbkFJ1KW2NIGUYF87cuvgUF3Q976fv4fPrnWQroZf0RzXTZTA942H3AMTKFKJHV6cTi8c6dd6tybUD65fybhPJT3BlbkFJ1KW2NIGPrnWQroZf0RzXTZTA942H3AMTKFy15whckAGSSRSTDvsvfHsrtbXhdrT";
 const AUTH = {
   "x-api-key": API_KEY,
 };
@@ -46,52 +49,7 @@ const obtenerSessionCheckout = async (ID_CHECKOUT_SESSION) => {
   console.log(json);
 };
 
-const DOMAIN = "http://localhost:5173";
-const payment_metadata = {};
-const payment_data = {
-  line_items: [
-    {
-      price_data: {
-        currency: "mxn", // Moneda
-        product_data: {
-          name: "Producto Ejemplo", // Nombre del producto,
-          description: "Producto de ejemplo para stripe",
-          images: [
-            "https://www.tvtime.com/_next/image?url=https%3A%2F%2Fartworks.thetvdb.com%2Fbanners%2Fv4%2Fmovie%2F567%2Fposters%2F668ad17fe053a.jpg",
-          ],
-        },
-        unit_amount: 1010, // Monto en centavos => $10.10
-      },
-      quantity: 1, // Cantidad de productos
-    },
-    /*{
-      price_data: {
-        currency: 'mxn', 
-        product_data: {
-          name: 'Producto Ejemplo 2', 
-        },
-        unit_amount: 2030, 
-      },
-      quantity: 1, 
-    },
-    {
-      price_data: {
-        currency: 'mxn', 
-        product_data: {
-          name: 'Producto Ejemplo 3', 
-        },
-        unit_amount: 1020, 
-      },
-      quantity: 1, 
-    },*/
-  ],
-  mode: "payment",
-  success_url: `${DOMAIN}?success=true&session={CHECKOUT_SESSION_ID}&metadata=${JSON.stringify(
-    payment_metadata
-  )}`, // En caso de que necesites mandar datos extras para despues del pago puedes hacerlo aqui, por ejemplo el id de la orden de compra para verificar que se compre o cancelar la compra y asi. Te lo coloque como un json pero si solo vas a mandar el string puede ser sin el json
-  cancel_url: `${DOMAIN}?session={CHECKOUT_SESSION_ID}`,
-};
-const crearSessionCheckout = async () => {
+const crearSessionCheckout = async (payment_data) => {
   const response = await fetch(`${URL}${ROUTES.stripe}${ENDPOINTS.create}`, {
     method: "POST",
     headers: {
