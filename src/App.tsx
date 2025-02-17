@@ -22,8 +22,11 @@ import { PaymentPage } from "./pages/PaymentPage";
 import { RegistrationPage } from "./pages/RegistrationPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { BookingsReportPage } from "./pages/BookingsReportPage";
+import useApi from "./hooks/useApi"; //ESTE ES EL HOOK
 
 const ResponsiveChat = () => {
+  const { obtenerClientes } = useApi(); //AQUI EXTRAE LAS FUNCIONES
+  obtenerClientes(); //ASI ES COMO SE USA EL HOOK; SOLO MANDA A LLAMAR LAS FUNCIONES
   const [currentPage, setCurrentPage] = useState<
     "chat" | "profile" | "registration" | "payment" | "bookings"
   >("chat");
