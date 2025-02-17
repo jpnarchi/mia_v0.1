@@ -121,6 +121,12 @@ const useApi = () => {
     obtenerSessionCheckout,
     obtenerClientes,
     obtenerClientesPorRfc,
+    obtenerClientesPorId,
+    obtenerlistaCfdisPorCliente,
+    descargarFactura,
+    mandarCorreo,
+    crearCfdi,
+    crearClient,
   };
 };
 
